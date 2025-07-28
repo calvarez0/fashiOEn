@@ -79,12 +79,12 @@ class Fashion3DSystem:
         """Transform a genome into a complete 3D fashion design"""
         
         # Step 1: Generate construction parameters from CPPN
-        cppn = GarmentCPPN(genome, self.garment_type)
+        cppn = GarmentCPPN(genome, self.garment_type.value)
         construction_params = self._generate_construction_parameters(cppn)
         
         # Step 2: Generate pattern pieces
         pattern_pieces = self.pattern_generator.generate_patterns(
-            construction_params, self.garment_type
+            construction_params, self.garment_type.value
         )
         
         # Step 3: Simulate 3D garment
@@ -146,7 +146,7 @@ class Fashion3DSystem:
                 }
         
         try:
-            return ConstructionParameters.from_cppn_outputs(params, self.garment_type)
+            return ConstructionParameters.from_cppn_outputs(params, self.garment_type.value)
         except Exception as e:
             print(f"   Warning: Failed to create construction parameters: {e}")
             return ConstructionParameters.create_default(self.garment_type.value)
@@ -455,33 +455,13 @@ class Fashion3DSystem:
         plt.close(fig)  # Close to prevent memory issues
     
     def _draw_realistic_dress(self, ax, design: FashionDesign, design_number: int):
-        """Draw a realistic dress shape on the body"""
+        """Draw a clear, recognizable dress shape on a human mannequin"""
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
         
         measurements = self.body_model.get_measurements()
         
-        # Draw body mannequin first
-        body_outline = np.array([
-            [0, measurements['neck_height'], measurements['neck_depth']/2],           # Neck
-            [-measurements['shoulder_width']/2, measurements['shoulder_height'], 0], # Left shoulder
-            [-measurements['chest_width']/2, measurements['chest_height'], measurements['chest_depth']/2],  # Left chest
-            [-measurements['waist_width']/2, measurements['waist_height'], measurements['waist_depth']/2],  # Left waist
-            [-measurements['hip_width']/2, measurements['hip_height'], measurements['hip_depth']/2],        # Left hip
-            [0, measurements['hip_height'] - 200, measurements['hip_depth']/2],      # Bottom center
-            [measurements['hip_width']/2, measurements['hip_height'], measurements['hip_depth']/2],         # Right hip
-            [measurements['waist_width']/2, measurements['waist_height'], measurements['waist_depth']/2],   # Right waist
-            [measurements['chest_width']/2, measurements['chest_height'], measurements['chest_depth']/2],   # Right chest
-            [measurements['shoulder_width']/2, measurements['shoulder_height'], 0],  # Right shoulder
-            [0, measurements['neck_height'], measurements['neck_depth']/2]           # Close shape
-        ])
-        
-        # Plot body outline in light gray
-        ax.plot(body_outline[:, 0], body_outline[:, 1], body_outline[:, 2], 
-               color='lightgray', linewidth=1, alpha=0.7, linestyle='-')
-        
-        # Add head as a simple circle at the top
-        head_center = [0, measurements['neck_height'] + 100, 0]
-        ax.scatter(*head_center, c='lightgray', s=200, alpha=0.7, marker='o')
+        # First, draw a clear human mannequin
+        self._draw_human_mannequin(ax, measurements)
         
         # Get dress parameters from construction params or use defaults
         if hasattr(design, 'construction_params') and design.construction_params:
@@ -497,89 +477,252 @@ class Fashion3DSystem:
             hem_curve = 0
         
         # Calculate dress measurements (body + ease)
-        bust_width = (measurements['bust_width'] + bust_ease) / 2
+        bust_width = (measurements.get('bust_width', 500) + bust_ease) / 2
         waist_width = (measurements['waist_width'] + waist_ease) / 2
         hip_width = (measurements['hip_width'] + hip_ease) / 2
-        hem_width = hip_width * 1.3  # A-line flare
         
-        # Dress heights
-        shoulder_height = measurements['shoulder_height']
-        bust_height = measurements['bust_height']
+        # Add variation based on fitness - higher fitness = more flattering proportions
+        fitness_factor = design.fitness
+        waist_suppression = 0.8 + (fitness_factor * 0.4)  # 0.8 to 1.2 multiplier
+        hem_flare = 1.2 + (fitness_factor * 0.3)  # 1.2 to 1.5 multiplier
+        
+        waist_width *= waist_suppression
+        hem_width = hip_width * hem_flare
+        
+        # Dress key heights
+        neckline_height = measurements['neck_height'] - 30
+        bust_height = measurements.get('bust_height', 1260)
         waist_height = measurements['waist_height']
         hip_height = measurements['hip_height']
-        hem_height = measurements['hip_height'] - 400  # Knee-length dress
+        hem_height = hip_height - 350  # Knee-length dress
         
-        # Create dress silhouette points
-        dress_front = np.array([
-            # Neckline
-            [-measurements['neck_width']/3, measurements['neck_height'] - 50, measurements['neck_depth']/2 + 30],
-            [measurements['neck_width']/3, measurements['neck_height'] - 50, measurements['neck_depth']/2 + 30],
+        # Create dress front silhouette - clear A-line shape
+        dress_front_points = [
+            # Neckline (scooped)
+            (-measurements['neck_width']/4, neckline_height, measurements['neck_depth']/2 + 25),
+            (measurements['neck_width']/4, neckline_height, measurements['neck_depth']/2 + 25),
             
-            # Shoulder/armhole area
-            [bust_width * 0.8, shoulder_height - 50, measurements['chest_depth']/2 + 20],
-            [-bust_width * 0.8, shoulder_height - 50, measurements['chest_depth']/2 + 20],
+            # Shoulders/armholes
+            (bust_width * 0.9, neckline_height + 30, measurements['chest_depth']/2 + 20),
+            (-bust_width * 0.9, neckline_height + 30, measurements['chest_depth']/2 + 20),
             
-            # Bust area
-            [bust_width, bust_height, measurements['bust_depth']/2 + 20],
-            [-bust_width, bust_height, measurements['bust_depth']/2 + 20],
+            # Bust area - fuller
+            (bust_width, bust_height, measurements.get('bust_depth', 250)/2 + 20),
+            (-bust_width, bust_height, measurements.get('bust_depth', 250)/2 + 20),
             
-            # Waist
-            [waist_width, waist_height, measurements['waist_depth']/2 + 15],
-            [-waist_width, waist_height, measurements['waist_depth']/2 + 15],
+            # Waist - fitted
+            (waist_width, waist_height, measurements['waist_depth']/2 + 15),
+            (-waist_width, waist_height, measurements['waist_depth']/2 + 15),
             
-            # Hip
-            [hip_width, hip_height, measurements['hip_depth']/2 + 15],
-            [-hip_width, hip_height, measurements['hip_depth']/2 + 15],
+            # Hip - slightly flared
+            (hip_width * 1.1, hip_height, measurements['hip_depth']/2 + 15),
+            (-hip_width * 1.1, hip_height, measurements['hip_depth']/2 + 15),
             
-            # Hem with curve
-            [hem_width, hem_height + hem_curve, measurements['hip_depth']/2 + 10],
-            [-hem_width, hem_height + hem_curve, measurements['hip_depth']/2 + 10],
-        ])
+            # Hem - A-line flare with curve variation
+            (hem_width + hem_curve, hem_height, measurements['hip_depth']/2 + 10),
+            (-hem_width - hem_curve, hem_height, measurements['hip_depth']/2 + 10),
+        ]
         
-        # Create back of dress (slightly different)
-        dress_back = dress_front.copy()
-        dress_back[:, 2] = -measurements['back_depth']/2 - 15  # Move to back
+        # Create dress back (slightly different proportions)
+        dress_back_points = []
+        for point in dress_front_points:
+            x, y, z = point
+            # Move to back, make slightly narrower
+            back_z = -measurements['back_depth']/2 - 15
+            back_x = x * 0.95  # Slightly narrower back
+            dress_back_points.append((back_x, y, back_z))
         
-        # Color based on fitness
-        color_intensity = design.fitness
-        dress_color = [0.8, 0.4 + color_intensity * 0.4, 0.9 - color_intensity * 0.3]  # Pink to purple gradient
+        # Convert to numpy arrays
+        dress_front = np.array(dress_front_points)
+        dress_back = np.array(dress_back_points)
         
-        # Create dress surfaces - simplified to avoid triangulation issues
+        # Color scheme based on fitness - better dresses get better colors
+        base_colors = [
+            [1.0, 0.7, 0.8],    # Pink
+            [0.8, 0.6, 1.0],    # Lavender  
+            [0.6, 0.8, 1.0],    # Light blue
+            [0.8, 1.0, 0.6],    # Light green
+            [1.0, 0.9, 0.6],    # Light yellow
+        ]
+        
+        color_index = min(int(fitness_factor * len(base_colors)), len(base_colors) - 1)
+        dress_color = base_colors[color_index]
+        
+        # Draw dress as clean surfaces
         try:
-            # Create front surface as a single polygon
-            front_poly = Poly3DCollection([dress_front], alpha=0.8, linewidths=0.5)
-            front_poly.set_facecolor(dress_color)
-            front_poly.set_edgecolor('purple')
-            ax.add_collection3d(front_poly)
+            # Create front dress panel
+            front_triangles = self._create_dress_triangles(dress_front)
+            if front_triangles:
+                front_poly = Poly3DCollection(front_triangles, alpha=0.85, linewidths=1.0)
+                front_poly.set_facecolor(dress_color)
+                front_poly.set_edgecolor([c * 0.7 for c in dress_color])
+                ax.add_collection3d(front_poly)
             
-            # Create back surface
-            back_poly = Poly3DCollection([dress_back], alpha=0.6, linewidths=0.3)
-            back_color = [c * 0.8 for c in dress_color]  # Darker back
-            back_poly.set_facecolor(back_color)
-            back_poly.set_edgecolor('darkmagenta')
-            ax.add_collection3d(back_poly)
+            # Create back dress panel
+            back_triangles = self._create_dress_triangles(dress_back)
+            if back_triangles:
+                back_poly = Poly3DCollection(back_triangles, alpha=0.75, linewidths=0.8)
+                back_color = [c * 0.85 for c in dress_color]  # Slightly darker back
+                back_poly.set_facecolor(back_color)
+                back_poly.set_edgecolor([c * 0.6 for c in back_color])
+                ax.add_collection3d(back_poly)
             
+            # Connect front and back with side panels for 3D effect
+            side_triangles = self._create_side_panels(dress_front, dress_back)
+            if side_triangles:
+                side_poly = Poly3DCollection(side_triangles, alpha=0.6, linewidths=0.5)
+                side_color = [c * 0.9 for c in dress_color]
+                side_poly.set_facecolor(side_color)
+                side_poly.set_edgecolor([c * 0.5 for c in side_color])
+                ax.add_collection3d(side_poly)
+                
         except Exception as e:
-            print(f"   Warning: Could not create dress surfaces: {e}")
-            # Fallback to wireframe
+            print(f"   Warning: Advanced dress rendering failed: {e}")
+            # Fallback to simple wireframe
             ax.plot(dress_front[:, 0], dress_front[:, 1], dress_front[:, 2], 
-                   color='purple', linewidth=3, alpha=0.9, label='Dress')
+                   color=dress_color, linewidth=4, alpha=0.9, label='Dress Front')
+            ax.plot(dress_back[:, 0], dress_back[:, 1], dress_back[:, 2], 
+                   color=[c * 0.8 for c in dress_color], linewidth=3, alpha=0.8, label='Dress Back')
         
-        # Plot dress outline for clarity
-        dress_outline = np.array([
-            dress_front[0], dress_front[2], dress_front[4], dress_front[6], 
-            dress_front[8], dress_front[10], dress_front[11], dress_front[9],
-            dress_front[7], dress_front[5], dress_front[3], dress_front[1], dress_front[0]
+        # Add dress details
+        self._add_dress_details(ax, dress_front, dress_color, fitness_factor)
+        
+        # Clear, readable label
+        label_color = 'navy' if sum(dress_color) > 2.0 else 'white'
+        ax.text(0, measurements['neck_height'] + 150, 100, 
+               f'DRESS {design_number}\nFitness: {design.fitness:.3f}', 
+               ha='center', va='center', fontsize=11, fontweight='bold', 
+               color=label_color,
+               bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.9, edgecolor='gray'))
+
+    def _draw_human_mannequin(self, ax, measurements):
+        """Draw a clear human mannequin"""
+        
+        # Head
+        head_center = [0, measurements['neck_height'] + 120, 0]
+        ax.scatter(*head_center, c='peachpuff', s=400, alpha=0.8, marker='o', edgecolors='brown', linewidth=1)
+        
+        # Neck
+        neck_points = [
+            [0, measurements['neck_height'], 0],
+            [0, measurements['neck_height'] + 80, 0]
+        ]
+        neck_line = np.array(neck_points)
+        ax.plot(neck_line[:, 0], neck_line[:, 1], neck_line[:, 2], 
+               color='peachpuff', linewidth=8, alpha=0.8)
+        
+        # Body outline - cleaner mannequin shape
+        body_points = [
+            # Shoulders
+            [-measurements['shoulder_width']/2, measurements['shoulder_height'], 0],
+            [measurements['shoulder_width']/2, measurements['shoulder_height'], 0],
+            
+            # Chest
+            [measurements['chest_width']/2, measurements['chest_height'], 0],
+            [-measurements['chest_width']/2, measurements['chest_height'], 0],
+            
+            # Waist  
+            [measurements['waist_width']/2, measurements['waist_height'], 0],
+            [-measurements['waist_width']/2, measurements['waist_height'], 0],
+            
+            # Hips
+            [measurements['hip_width']/2, measurements['hip_height'], 0],
+            [-measurements['hip_width']/2, measurements['hip_height'], 0],
+            
+            # Legs (simplified)
+            [measurements['hip_width']/4, measurements['hip_height'] - 300, 0],
+            [-measurements['hip_width']/4, measurements['hip_height'] - 300, 0],
+        ]
+        
+        # Draw body outline
+        body_outline = np.array(body_points)
+        ax.plot(body_outline[::2, 0], body_outline[::2, 1], body_outline[::2, 2], 
+               color='tan', linewidth=3, alpha=0.7, label='Body')  # Right side
+        ax.plot(body_outline[1::2, 0], body_outline[1::2, 1], body_outline[1::2, 2], 
+               color='tan', linewidth=3, alpha=0.7)  # Left side
+        
+        # Arms (simple)
+        # Right arm
+        right_arm = np.array([
+            [measurements['shoulder_width']/2, measurements['shoulder_height'], 0],
+            [measurements['shoulder_width']/2 + 80, measurements['shoulder_height'] - 100, 0],
+            [measurements['shoulder_width']/2 + 60, measurements['waist_height'], 0]
         ])
+        ax.plot(right_arm[:, 0], right_arm[:, 1], right_arm[:, 2], 
+               color='tan', linewidth=4, alpha=0.6)
         
-        ax.plot(dress_outline[:, 0], dress_outline[:, 1], dress_outline[:, 2], 
-               color='purple', linewidth=2, alpha=0.9)
+        # Left arm  
+        left_arm = np.array([
+            [-measurements['shoulder_width']/2, measurements['shoulder_height'], 0],
+            [-measurements['shoulder_width']/2 - 80, measurements['shoulder_height'] - 100, 0],
+            [-measurements['shoulder_width']/2 - 60, measurements['waist_height'], 0]
+        ])
+        ax.plot(left_arm[:, 0], left_arm[:, 1], left_arm[:, 2], 
+               color='tan', linewidth=4, alpha=0.6)
+
+    def _create_dress_triangles(self, dress_points):
+        """Create triangular mesh for dress surface"""
+        triangles = []
         
-        # Add dress label
-        ax.text(0, measurements['shoulder_height'] + 100, 50, 
-               f'Dress {design_number}\nFit: {design.fitness:.3f}', 
-               ha='center', va='center', fontsize=9, fontweight='bold', 
-               bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+        # Create triangular strips for smooth dress surface
+        for i in range(0, len(dress_points) - 3, 2):
+            if i + 3 < len(dress_points):
+                # Create two triangles for each "band" of the dress
+                triangle1 = [dress_points[i], dress_points[i+1], dress_points[i+2]]
+                triangle2 = [dress_points[i+1], dress_points[i+2], dress_points[i+3]]
+                triangles.extend([triangle1, triangle2])
+        
+        return triangles
+
+    def _create_side_panels(self, front_points, back_points):
+        """Create side panels connecting front and back of dress"""
+        side_triangles = []
+        
+        # Right side panels
+        for i in range(0, len(front_points) - 1, 2):
+            if i + 1 < len(front_points) and i + 1 < len(back_points):
+                # Right side
+                front_right = front_points[i] if front_points[i][0] > 0 else front_points[i+1]
+                back_right = back_points[i] if back_points[i][0] > 0 else back_points[i+1]
+                
+                if i + 2 < len(front_points):
+                    front_right_next = front_points[i+2] if front_points[i+2][0] > 0 else front_points[i+3] if i+3 < len(front_points) else front_points[i+2]
+                    back_right_next = back_points[i+2] if back_points[i+2][0] > 0 else back_points[i+3] if i+3 < len(back_points) else back_points[i+2]
+                    
+                    # Create side panel triangles
+                    triangle1 = [front_right, back_right, front_right_next]
+                    triangle2 = [back_right, back_right_next, front_right_next]
+                    side_triangles.extend([triangle1, triangle2])
+        
+        return side_triangles
+
+    def _add_dress_details(self, ax, dress_front, dress_color, fitness_factor):
+        """Add dress details like neckline, waistline"""
+        
+        # Neckline detail
+        neckline_points = dress_front[:2]  # First two points are neckline
+        if len(neckline_points) == 2:
+            ax.plot([neckline_points[0][0], neckline_points[1][0]], 
+                   [neckline_points[0][1], neckline_points[1][1]], 
+                   [neckline_points[0][2], neckline_points[1][2]], 
+                   color='darkviolet', linewidth=3, alpha=0.9)
+        
+        # Waistline detail (if fitness is high enough)
+        if fitness_factor > 0.3:
+            waist_points = dress_front[6:8]  # Waist area points
+            if len(waist_points) == 2:
+                ax.plot([waist_points[0][0], waist_points[1][0]], 
+                       [waist_points[0][1], waist_points[1][1]], 
+                       [waist_points[0][2], waist_points[1][2]], 
+                       color='purple', linewidth=2, alpha=0.7, linestyle='--')
+        
+        # Hemline
+        hem_points = dress_front[-2:]  # Last two points are hemline
+        if len(hem_points) == 2:
+            ax.plot([hem_points[0][0], hem_points[1][0]], 
+                   [hem_points[0][1], hem_points[1][1]], 
+                   [hem_points[0][2], hem_points[1][2]], 
+                   color='darkmagenta', linewidth=2, alpha=0.8)
     
     def _create_summary_image(self, designs: List[FashionDesign], generation: int, results_folder: str):
         """Create a simple summary visualization"""
@@ -632,313 +775,6 @@ class Fashion3DSystem:
         plt.show(block=False)
         plt.pause(0.1)
         plt.close(fig)  # Close to prevent memory issues
-    
-    def display_generation(self, designs: List[FashionDesign], generation: int):
-        """Display the current generation of designs"""
-        # Create visualization
-        n_designs = min(len(designs), 9)  # Show top 9
-        fig = plt.figure(figsize=(15, 10))
-        
-        for i in range(n_designs):
-            design = designs[i]
-            
-            # Create subplot for 3D visualization
-            ax = fig.add_subplot(3, 3, i+1, projection='3d')
-            
-            if design.mesh_3d is not None:
-                # Plot garment mesh as actual surfaces
-                vertices = design.mesh_3d.vertices
-                faces = design.mesh_3d.faces
-                
-                if len(vertices) > 0 and len(faces) > 0:
-                    # Create 3D surface plot
-                    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-                    
-                    # Collect all triangular faces
-                    triangles = []
-                    for face in faces:
-                        if len(face) >= 3 and all(0 <= i < len(vertices) for i in face[:3]):
-                            triangle_verts = vertices[face[:3]]
-                            triangles.append(triangle_verts)
-                    
-                    if triangles:
-                        # Create 3D surface collection
-                        poly3d = Poly3DCollection(triangles, alpha=0.7, linewidths=0.5)
-                        poly3d.set_facecolor('lightblue')
-                        poly3d.set_edgecolor('navy')
-                        ax.add_collection3d(poly3d)
-                        
-                        # Also plot some key vertices for structure
-                        ax.scatter(vertices[::5, 0], vertices[::5, 1], vertices[::5, 2], 
-                                 c='darkblue', alpha=0.8, s=10)
-                    else:
-                        # Fallback: show as wireframe
-                        ax.scatter(vertices[:, 0], vertices[:, 1], vertices[:, 2], 
-                                 c='blue', alpha=0.8, s=20)
-                        
-                        # Draw wireframe
-                        for face in faces[::2]:
-                            if len(face) >= 3 and all(0 <= i < len(vertices) for i in face[:3]):
-                                triangle = vertices[face[:3]]
-                                # Close the triangle
-                                triangle_closed = np.vstack([triangle, triangle[0]])
-                                ax.plot(triangle_closed[:, 0], triangle_closed[:, 1], 
-                                       triangle_closed[:, 2], 'b-', alpha=0.8, linewidth=2)
-                else:
-                    ax.text(0, 1000, 0, f'Design {i+1}\n(Empty Mesh)', ha='center', va='center')
-            else:
-                # Create a simple visual representation if no mesh
-                # Draw a basic dress shape
-                chest_width = 260  # Half of chest measurement
-                hip_width = 330    # Half of hip measurement  
-                shoulder_height = 1420
-                waist_height = 1080
-                hip_height = 920
-                hem_height = 600
-                
-                # Create simple dress silhouette
-                dress_points = np.array([
-                    # Left side
-                    [-chest_width/2, shoulder_height, 100],  # Left shoulder
-                    [-chest_width/2, waist_height, 100],     # Left waist
-                    [-hip_width/2, hip_height, 100],         # Left hip
-                    [-hip_width/2, hem_height, 100],         # Left hem
-                    # Right side  
-                    [hip_width/2, hem_height, 100],          # Right hem
-                    [hip_width/2, hip_height, 100],          # Right hip
-                    [chest_width/2, waist_height, 100],      # Right waist
-                    [chest_width/2, shoulder_height, 100],   # Right shoulder
-                    [-chest_width/2, shoulder_height, 100]   # Close the shape
-                ])
-                
-                # Plot dress outline
-                ax.plot(dress_points[:, 0], dress_points[:, 1], dress_points[:, 2], 
-                       'b-', linewidth=3, alpha=0.8, label='Dress Shape')
-                
-                # Fill the dress area (front face)
-                front_face = dress_points[:-1]  # Remove duplicate point
-                from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-                poly = Poly3DCollection([front_face], alpha=0.5)
-                poly.set_facecolor('lightblue')
-                poly.set_edgecolor('navy')
-                ax.add_collection3d(poly)
-                
-                # Add back face for 3D effect
-                back_points = dress_points.copy()
-                back_points[:, 2] = -100  # Move to back
-                back_face = back_points[:-1]
-                poly_back = Poly3DCollection([back_face], alpha=0.3)
-                poly_back.set_facecolor('lightgray')
-                poly_back.set_edgecolor('gray')
-                ax.add_collection3d(poly_back)
-                
-                ax.text(0, 800, 200, f'Dress {i+1}', ha='center', va='center', 
-                       fontsize=10, fontweight='bold')
-            
-            # Plot body silhouette for reference - draw actual body shape
-            measurements = self.body_model.get_measurements()
-            
-            # Create simple body mannequin silhouette
-            body_outline = np.array([
-                # Front body outline
-                [0, measurements['neck_height'], measurements['neck_depth']/2],           # Neck
-                [-measurements['shoulder_width']/2, measurements['shoulder_height'], 0], # Left shoulder
-                [-measurements['chest_width']/2, measurements['chest_height'], measurements['chest_depth']/2],  # Left chest
-                [-measurements['waist_width']/2, measurements['waist_height'], measurements['waist_depth']/2],  # Left waist
-                [-measurements['hip_width']/2, measurements['hip_height'], measurements['hip_depth']/2],        # Left hip
-                [0, measurements['hip_height'] - 200, measurements['hip_depth']/2],      # Bottom center
-                [measurements['hip_width']/2, measurements['hip_height'], measurements['hip_depth']/2],         # Right hip
-                [measurements['waist_width']/2, measurements['waist_height'], measurements['waist_depth']/2],   # Right waist
-                [measurements['chest_width']/2, measurements['chest_height'], measurements['chest_depth']/2],   # Right chest
-                [measurements['shoulder_width']/2, measurements['shoulder_height'], 0],  # Right shoulder
-                [0, measurements['neck_height'], measurements['neck_depth']/2]           # Close shape
-            ])
-            
-            # Plot body outline in light gray
-            ax.plot(body_outline[:, 0], body_outline[:, 1], body_outline[:, 2], 
-                   color='lightgray', linewidth=1, alpha=0.7, linestyle='-')
-            
-            # Add head as a simple circle at the top
-            head_center = [0, measurements['neck_height'] + 100, 0]
-            ax.scatter(*head_center, c='lightgray', s=200, alpha=0.7, marker='o')
-            
-            if design.mesh_3d is not None:
-                # If we have a mesh, try to plot it as dress surfaces
-                vertices = design.mesh_3d.vertices
-                faces = design.mesh_3d.faces
-                
-                if len(vertices) > 0 and len(faces) > 0:
-                    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-                    
-                    # Collect triangular faces for the dress
-                    triangles = []
-                    for face in faces[::2]:  # Sample every other face for performance
-                        if len(face) >= 3 and all(0 <= i < len(vertices) for i in face[:3]):
-                            triangle_verts = vertices[face[:3]]
-                            triangles.append(triangle_verts)
-                    
-                    if triangles:
-                        # Create dress surface
-                        poly3d = Poly3DCollection(triangles, alpha=0.8, linewidths=0.5)
-                        
-                        # Color based on fitness - better dresses are more blue
-                        color_intensity = design.fitness
-                        dress_color = [0.2, 0.4 + color_intensity * 0.6, 0.8 + color_intensity * 0.2]
-                        
-                        poly3d.set_facecolor(dress_color)
-                        poly3d.set_edgecolor('navy')
-                        ax.add_collection3d(poly3d)
-                        
-                        ax.text(0, measurements['shoulder_height'] + 150, 0, 
-                               f'Dress {i+1}', ha='center', va='center', 
-                               fontsize=9, fontweight='bold', color='darkblue')
-                    else:
-                        # Fallback to creating a beautiful dress shape
-                        self._draw_realistic_dress(ax, measurements, design, i)
-                else:
-                    # Create a beautiful dress shape
-                    self._draw_realistic_dress(ax, measurements, design, i)
-            else:
-                # Create a beautiful dress shape
-                self._draw_realistic_dress(ax, measurements, design, i)
-    
-    def _draw_realistic_dress(self, ax, measurements, design, i):
-        """Draw a realistic dress shape on the body"""
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-        
-        # Get dress parameters from construction params or use defaults
-        if hasattr(design, 'construction_params') and design.construction_params:
-            params = design.construction_params
-            bust_ease = params.ease_amounts.get('bust', 80)
-            waist_ease = params.ease_amounts.get('waist', 60) 
-            hip_ease = params.ease_amounts.get('hip', 100)
-            hem_curve = getattr(params, 'hem_curve', 0)
-        else:
-            bust_ease = 80
-            waist_ease = 60
-            hip_ease = 100
-            hem_curve = 0
-        
-        # Calculate dress measurements (body + ease)
-        bust_width = (measurements['bust_width'] + bust_ease) / 2
-        waist_width = (measurements['waist_width'] + waist_ease) / 2
-        hip_width = (measurements['hip_width'] + hip_ease) / 2
-        hem_width = hip_width * 1.3  # A-line flare
-        
-        # Dress heights
-        shoulder_height = measurements['shoulder_height']
-        bust_height = measurements['bust_height']
-        waist_height = measurements['waist_height']
-        hip_height = measurements['hip_height']
-        hem_height = measurements['hip_height'] - 400  # Knee-length dress
-        
-        # Create dress silhouette points
-        dress_front = np.array([
-            # Neckline
-            [-measurements['neck_width']/3, measurements['neck_height'] - 50, measurements['neck_depth']/2 + 30],
-            [measurements['neck_width']/3, measurements['neck_height'] - 50, measurements['neck_depth']/2 + 30],
-            
-            # Shoulder/armhole area
-            [bust_width * 0.8, shoulder_height - 50, measurements['chest_depth']/2 + 20],
-            [-bust_width * 0.8, shoulder_height - 50, measurements['chest_depth']/2 + 20],
-            
-            # Bust area
-            [bust_width, bust_height, measurements['bust_depth']/2 + 20],
-            [-bust_width, bust_height, measurements['bust_depth']/2 + 20],
-            
-            # Waist
-            [waist_width, waist_height, measurements['waist_depth']/2 + 15],
-            [-waist_width, waist_height, measurements['waist_depth']/2 + 15],
-            
-            # Hip
-            [hip_width, hip_height, measurements['hip_depth']/2 + 15],
-            [-hip_width, hip_height, measurements['hip_depth']/2 + 15],
-            
-            # Hem with curve
-            [hem_width, hem_height + hem_curve, measurements['hip_depth']/2 + 10],
-            [-hem_width, hem_height + hem_curve, measurements['hip_depth']/2 + 10],
-        ])
-        
-        # Create back of dress (slightly different)
-        dress_back = dress_front.copy()
-        dress_back[:, 2] = -measurements['back_depth']/2 - 15  # Move to back
-        
-        # Create dress surfaces
-        
-        # Front panels
-        front_triangles = []
-        for idx in range(len(dress_front) - 2):
-            if idx % 2 == 0:  # Left side
-                triangle = [dress_front[idx], dress_front[idx+2], dress_front[idx+1]]
-                front_triangles.append(triangle)
-            
-        # Side panels connecting front to back
-        side_triangles = []
-        for j in range(0, len(dress_front) - 1, 2):
-            if j + 1 < len(dress_front):
-                # Right side panel
-                side_triangles.extend([
-                    [dress_front[j], dress_back[j], dress_front[j+1]],
-                    [dress_back[j], dress_back[j+1], dress_front[j+1]]
-                ])
-                
-                # Left side panel  
-                if j + 2 < len(dress_front):
-                    side_triangles.extend([
-                        [dress_front[j+1], dress_back[j+1], dress_front[j+2]],
-                        [dress_back[j+1], dress_back[j+2], dress_front[j+2]]
-                    ])
-        
-        # Color based on fitness
-        color_intensity = design.fitness
-        dress_color = [0.8, 0.4 + color_intensity * 0.4, 0.9 - color_intensity * 0.3]  # Pink to purple gradient
-        
-        # Plot front surface
-        if front_triangles:
-            front_poly = Poly3DCollection(front_triangles, alpha=0.8, linewidths=0.5)
-            front_poly.set_facecolor(dress_color)
-            front_poly.set_edgecolor('purple')
-            ax.add_collection3d(front_poly)
-        
-        # Plot side surfaces
-        if side_triangles:
-            side_poly = Poly3DCollection(side_triangles, alpha=0.7, linewidths=0.3)
-            side_color = [c * 0.8 for c in dress_color]  # Darker sides
-            side_poly.set_facecolor(side_color)
-            side_poly.set_edgecolor('darkmagenta')
-            ax.add_collection3d(side_poly)
-        
-        # Plot dress outline for clarity
-        dress_outline = np.array([
-            dress_front[0], dress_front[2], dress_front[4], dress_front[6], 
-            dress_front[8], dress_front[10], dress_front[11], dress_front[9],
-            dress_front[7], dress_front[5], dress_front[3], dress_front[1], dress_front[0]
-        ])
-        
-        ax.plot(dress_outline[:, 0], dress_outline[:, 1], dress_outline[:, 2], 
-               color='purple', linewidth=2, alpha=0.9)
-        
-        # Add dress label
-        ax.text(0, measurements['shoulder_height'] + 100, 50, 
-               f'Dress {i+1}\nFit: {design.fitness:.3f}', 
-               ha='center', va='center', fontsize=9, fontweight='bold', 
-               bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
-            
-        ax.set_title(f'Design {i+1}\nFitness: {design.fitness:.3f}', fontsize=10)
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        
-        # Set equal aspect ratio
-        max_range = 300  # mm
-        ax.set_xlim([-max_range, max_range])
-        ax.set_ylim([-max_range, max_range])
-        ax.set_zlim([0, 600])
-        
-        plt.suptitle(f'3D Fashion Evolution - Generation {generation + 1}', fontsize=16)
-        plt.tight_layout()
-        plt.savefig(f'generation_{generation + 1}_3d.png', dpi=150, bbox_inches='tight')
-        plt.show()
     
     def save_best_design(self, designs: List[FashionDesign], filename: str):
         """Save the best design with all its data"""
