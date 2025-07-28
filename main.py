@@ -1,7 +1,8 @@
-# main.py - 3D Fashion CPPN Evolution System
+# main.py - Enhanced 3D Fashion CPPN Evolution System with Beautiful Dresses
 """
-3D Fashion CPPN Evolution System
-Generates actual garment construction parameters that can be sewn and worn.
+Enhanced 3D Fashion CPPN Evolution System
+Generates beautiful, realistic dress visualizations that evolve over generations.
+Creates stunning fashion designs that look like they belong in a design studio.
 """
 
 import numpy as np
@@ -14,6 +15,8 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
 from enum import Enum
 import math
+import os
+import datetime
 
 # Import our custom modules
 try:
@@ -21,18 +24,11 @@ try:
     from body_model import HumanBodyModel
     from pattern_generator import PatternGenerator
     from cloth_simulator import ClothSimulator
-    from fashion_renderer import Fashion3DRenderer
+    from fashion_renderer import EnhancedFashion3DRenderer  # Use enhanced renderer
     from evolution_engine import FashionEvolutionEngine
 except ImportError as e:
     print(f"Import error: {e}")
-    print("Make sure all files are in the same directory:")
-    print("- main.py")
-    print("- garment_genome.py") 
-    print("- body_model.py")
-    print("- pattern_generator.py")
-    print("- cloth_simulator.py")
-    print("- fashion_renderer.py")
-    print("- evolution_engine.py")
+    print("Make sure all files are in the same directory and fashion_renderer.py is updated")
     exit(1)
 
 class GarmentType(Enum):
@@ -44,13 +40,16 @@ class GarmentType(Enum):
 
 @dataclass
 class FashionDesign:
-    """Complete fashion design with 3D representation"""
+    """Complete fashion design with enhanced visualization data"""
     genome: GarmentGenome
     construction_params: ConstructionParameters
     pattern_pieces: List[Dict]
     mesh_3d: Optional[trimesh.Trimesh] = None
     fitness: float = 0.0
     generation: int = 0
+    style_characteristics: Dict = field(default_factory=dict)
+    color_palette: List = field(default_factory=list)
+    design_notes: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict:
         return {
@@ -58,69 +57,83 @@ class FashionDesign:
             'construction_params': self.construction_params.to_dict(),
             'pattern_pieces': self.pattern_pieces,
             'fitness': self.fitness,
-            'generation': self.generation
+            'generation': self.generation,
+            'style_characteristics': self.style_characteristics,
+            'color_palette': self.color_palette,
+            'design_notes': self.design_notes
         }
 
-class Fashion3DSystem:
-    """Main system orchestrating 3D fashion evolution"""
+class Enhanced3DFashionSystem:
+    """Enhanced system for beautiful 3D fashion evolution"""
     
-    def __init__(self, garment_type: GarmentType = GarmentType.JACKET):
+    def __init__(self, garment_type: GarmentType = GarmentType.DRESS):
         self.garment_type = garment_type
         self.body_model = HumanBodyModel()
         self.pattern_generator = PatternGenerator(self.body_model)
         self.cloth_simulator = ClothSimulator()
-        self.renderer = Fashion3DRenderer()
+        self.renderer = EnhancedFashion3DRenderer()  # Use enhanced renderer
         self.evolution_engine = FashionEvolutionEngine()
         
-        print(f"🎨 Initialized 3D Fashion System for {garment_type.value}")
-        print(f"📐 Body model: {self.body_model.get_measurements()}")
+        # Fashion design parameters
+        self.design_themes = [
+            'elegant_evening', 'casual_chic', 'business_professional', 
+            'bohemian_artistic', 'modern_minimalist', 'romantic_vintage'
+        ]
+        
+        print(f"✨ Enhanced 3D Fashion System Initialized")
+        print(f"🎨 Garment Type: {garment_type.value}")
+        print(f"👗 Ready to create beautiful fashion designs!")
     
-    def create_design_from_genome(self, genome: GarmentGenome) -> FashionDesign:
-        """Transform a genome into a complete 3D fashion design"""
+    def create_enhanced_design_from_genome(self, genome: GarmentGenome) -> FashionDesign:
+        """Transform a genome into a beautiful fashion design"""
         
-        # Step 1: Generate construction parameters from CPPN
+        # Step 1: Generate enhanced construction parameters
         cppn = GarmentCPPN(genome, self.garment_type.value)
-        construction_params = self._generate_construction_parameters(cppn)
+        construction_params = self._generate_enhanced_construction_parameters(cppn)
         
-        # Step 2: Generate pattern pieces
+        # Step 2: Determine style characteristics based on genome
+        style_characteristics = self._analyze_genome_style(genome)
+        
+        # Step 3: Generate color palette based on fitness and style
+        color_palette = self._generate_color_palette(genome.fitness, style_characteristics)
+        
+        # Step 4: Generate pattern pieces with style influence
         pattern_pieces = self.pattern_generator.generate_patterns(
             construction_params, self.garment_type.value
         )
         
-        # Step 3: Simulate 3D garment
-        mesh_3d = self.cloth_simulator.simulate_garment(
-            pattern_pieces, self.body_model, construction_params
-        )
+        # Step 5: Enhanced pattern processing for better visualization
+        pattern_pieces = self._enhance_patterns_for_visualization(pattern_pieces, style_characteristics)
         
-        # Debug info
-        if mesh_3d is not None:
-            print(f"     ✓ 3D mesh: {len(mesh_3d.vertices)} vertices, {len(mesh_3d.faces)} faces")
-        else:
-            print(f"     ✗ 3D mesh creation failed")
+        # Step 6: Create or simulate 3D mesh (with fallback to procedural generation)
+        mesh_3d = self._create_enhanced_3d_mesh(pattern_pieces, construction_params, style_characteristics)
         
-        # Step 4: Create complete design
+        # Step 7: Generate design notes
+        design_notes = self._generate_design_notes(construction_params, style_characteristics, genome.fitness)
+        
+        # Create enhanced design
         design = FashionDesign(
             genome=genome,
             construction_params=construction_params,
             pattern_pieces=pattern_pieces,
-            mesh_3d=mesh_3d
+            mesh_3d=mesh_3d,
+            style_characteristics=style_characteristics,
+            color_palette=color_palette,
+            design_notes=design_notes
         )
         
         return design
     
-    def _generate_construction_parameters(self, cppn: GarmentCPPN) -> ConstructionParameters:
-        """Generate construction parameters using body-aware CPPN evaluation"""
+    def _generate_enhanced_construction_parameters(self, cppn: GarmentCPPN) -> ConstructionParameters:
+        """Generate enhanced construction parameters with fashion sensibility"""
         
-        # Get key body measurements for CPPN input
         measurements = self.body_model.get_measurements()
-        
-        # Evaluate CPPN at key construction points
-        construction_points = self._get_construction_evaluation_points()
+        construction_points = self._get_fashion_evaluation_points()
         
         params = {}
         for point_name, (x, y, z) in construction_points.items():
             try:
-                # Normalize coordinates relative to body with safety checks
+                # Normalize coordinates with fashion-aware scaling
                 chest_width = measurements.get('chest_width', 520)
                 waist_height = measurements.get('waist_height', 1080)
                 torso_height = measurements.get('torso_height', 340)
@@ -130,697 +143,713 @@ class Fashion3DSystem:
                 norm_y = (y - waist_height) / torso_height if torso_height > 0 else 0
                 norm_z = z / body_depth if body_depth > 0 else 0
                 
-                # Evaluate CPPN
+                # Evaluate CPPN with fashion-specific inputs
                 outputs = cppn.evaluate(norm_x, norm_y, norm_z)
+                
+                # Add fashion-specific enhancements
+                outputs['style_factor'] = self._calculate_style_factor(norm_x, norm_y, norm_z)
+                outputs['elegance'] = self._calculate_elegance_factor(outputs)
+                
                 params[point_name] = outputs
+                
             except Exception as e:
-                print(f"   Warning: Failed to evaluate CPPN at {point_name}: {e}")
-                # Provide default outputs
-                params[point_name] = {
-                    'ease': 0.0,
-                    'dart': 0.0,
-                    'curve': 0.0,
-                    'suppression': 0.0,
-                    'slope': 0.0,
-                    'asymmetry': 0.0
-                }
+                print(f"   Warning: CPPN evaluation failed for {point_name}: {e}")
+                params[point_name] = self._get_default_fashion_params()
         
         try:
-            return ConstructionParameters.from_cppn_outputs(params, self.garment_type.value)
+            enhanced_params = ConstructionParameters.from_cppn_outputs(params, self.garment_type.value)
+            return self._apply_fashion_enhancements(enhanced_params, params)
         except Exception as e:
-            print(f"   Warning: Failed to create construction parameters: {e}")
+            print(f"   Warning: Using default construction parameters: {e}")
             return ConstructionParameters.create_default(self.garment_type.value)
     
-    def _get_construction_evaluation_points(self) -> Dict[str, Tuple[float, float, float]]:
-        """Get key 3D points where CPPN should be evaluated for construction"""
+    def _get_fashion_evaluation_points(self) -> Dict[str, Tuple[float, float, float]]:
+        """Get fashion-specific evaluation points for dress design"""
         measurements = self.body_model.get_measurements()
         
-        if self.garment_type == GarmentType.JACKET:
+        if self.garment_type == GarmentType.DRESS:
             return {
-                'shoulder_point': (measurements['shoulder_width']/2, measurements['shoulder_height'], 0),
-                'chest_point': (measurements['chest_width']/2, measurements['chest_height'], measurements['chest_depth']/2),
-                'waist_point': (measurements['waist_width']/2, measurements['waist_height'], measurements['waist_depth']/2),
-                'hem_point': (measurements['hip_width']/2, measurements['hip_height'], measurements['hip_depth']/2),
-                'lapel_point': (measurements['chest_width']/4, measurements['chest_height'] + 50, measurements['chest_depth']/2),
-                'armhole_front': (measurements['shoulder_width']/2, measurements['armpit_height'], measurements['chest_depth']/3),
-                'armhole_back': (measurements['shoulder_width']/2, measurements['armpit_height'], -measurements['back_depth']/3),
-                'side_seam': (measurements['chest_width']/2, measurements['waist_height'], 0),
-            }
-        elif self.garment_type == GarmentType.DRESS:
-            return {
-                'neckline': (0, measurements['neck_height'], measurements.get('neck_depth', 140)/2),
-                'bust_point': (measurements.get('bust_width', 500)/2, measurements.get('bust_height', 1260), measurements.get('bust_depth', 250)/2),
-                'waist_point': (measurements['waist_width']/2, measurements['waist_height'], measurements['waist_depth']/2),
-                'hip_point': (measurements['hip_width']/2, measurements['hip_height'], measurements['hip_depth']/2),
-                'hem_point': (measurements.get('hip_width', 550)/2 * 1.2, measurements.get('hem_height', 600), 0),
-                'shoulder_point': (measurements['shoulder_width']/2, measurements['shoulder_height'], 0),
+                'neckline_style': (0, measurements['neck_height'], measurements.get('neck_depth', 140)/2),
+                'bust_definition': (measurements.get('bust_width', 500)/2, measurements.get('bust_height', 1260), measurements.get('bust_depth', 250)/2),
+                'waist_cinch': (measurements['waist_width']/2, measurements['waist_height'], measurements['waist_depth']/2),
+                'hip_flow': (measurements['hip_width']/2, measurements['hip_height'], measurements['hip_depth']/2),
+                'hem_drama': (measurements.get('hip_width', 550)/2 * 1.3, measurements.get('hem_height', 600), 0),
+                'shoulder_elegance': (measurements['shoulder_width']/2, measurements['shoulder_height'], 0),
+                'side_silhouette': (measurements['hip_width']/2, measurements['waist_height'], 0),
+                'back_sophistication': (0, measurements['chest_height'], -measurements['back_depth']/2),
             }
         else:
-            # Default construction points
+            # Default points for other garments
             return {
                 'center_front': (0, measurements['chest_height'], measurements['chest_depth']/2),
                 'center_back': (0, measurements['chest_height'], -measurements['back_depth']/2),
                 'side_seam': (measurements['chest_width']/2, measurements['waist_height'], 0),
             }
     
-    def evaluate_design_wearability(self, design: FashionDesign) -> float:
-        """Evaluate how wearable and realistic a design is"""
-        score = 0.0
-        
-        # Check if garment fits properly
-        fit_score = self._evaluate_fit(design)
-        score += fit_score * 0.4
-        
-        # Check construction feasibility
-        construction_score = self._evaluate_construction(design)
-        score += construction_score * 0.3
-        
-        # Check aesthetic appeal
-        aesthetic_score = self._evaluate_aesthetics(design)
-        score += aesthetic_score * 0.3
-        
-        return score
+    def _calculate_style_factor(self, x: float, y: float, z: float) -> float:
+        """Calculate style factor based on position"""
+        # Combine coordinates to create style influence
+        return math.sin(x * math.pi) * math.cos(y * math.pi) * 0.5 + 0.5
     
-    def _evaluate_fit(self, design: FashionDesign) -> float:
-        """Evaluate how well the garment fits the body"""
-        if design.mesh_3d is None:
-            return 0.0
-        
-        # Check for intersections with body
-        body_mesh = self.body_model.get_mesh()
-        
-        # Simple collision detection
-        garment_vertices = design.mesh_3d.vertices
-        body_vertices = body_mesh.vertices
-        
-        # Check minimum distance to body (should have ease)
-        min_distances = []
-        for garment_vertex in garment_vertices[::10]:  # Sample every 10th vertex for performance
-            distances = np.linalg.norm(body_vertices - garment_vertex, axis=1)
-            min_distances.append(np.min(distances))
-        
-        avg_ease = np.mean(min_distances)
-        
-        # Ideal ease is 2-5cm depending on garment type
-        ideal_ease = 30.0 if self.garment_type == GarmentType.JACKET else 20.0
-        ease_score = 1.0 - abs(avg_ease - ideal_ease) / ideal_ease
-        
-        return max(0.0, ease_score)
+    def _calculate_elegance_factor(self, outputs: Dict) -> float:
+        """Calculate elegance factor from CPPN outputs"""
+        # Combine multiple outputs to determine elegance
+        elegance = 0.0
+        for key, value in outputs.items():
+            if isinstance(value, (int, float)):
+                elegance += abs(value) * 0.1
+        return min(elegance, 1.0)
     
-    def _evaluate_construction(self, design: FashionDesign) -> float:
-        """Evaluate if the design can actually be constructed"""
-        score = 0.0
+    def _get_default_fashion_params(self) -> Dict:
+        """Get default fashion parameters"""
+        return {
+            'ease': random.uniform(-0.3, 0.3),
+            'dart': random.uniform(-0.2, 0.2),
+            'curve': random.uniform(-0.4, 0.4),
+            'suppression': random.uniform(-0.2, 0.2),
+            'slope': random.uniform(-0.1, 0.1),
+            'asymmetry': random.uniform(-0.1, 0.1),
+            'style_factor': random.uniform(0.3, 0.7),
+            'elegance': random.uniform(0.4, 0.8)
+        }
+    
+    def _apply_fashion_enhancements(self, params: ConstructionParameters, cppn_params: Dict) -> ConstructionParameters:
+        """Apply fashion-specific enhancements to construction parameters"""
         
-        # Check if pattern pieces are reasonable
-        for piece in design.pattern_pieces:
-            # Check for reasonable proportions
-            if 'vertices' in piece:
-                vertices = np.array(piece['vertices'])
-                if len(vertices) > 2:
-                    # Calculate area - should not be too small or too large
-                    area = self._calculate_polygon_area(vertices)
-                    if 1000 < area < 200000:  # Reasonable area in mm²
-                        score += 0.2
-                    
-                    # Check for reasonable perimeter
-                    perimeter = self._calculate_polygon_perimeter(vertices)
-                    if 200 < perimeter < 2000:  # Reasonable perimeter in mm
-                        score += 0.2
+        # Calculate overall style score
+        style_scores = []
+        for point_params in cppn_params.values():
+            if 'style_factor' in point_params:
+                style_scores.append(point_params['style_factor'])
         
-        # Check seam feasibility
-        params = design.construction_params
-        if hasattr(params, 'seam_allowances'):
-            if all(5 <= allowance <= 20 for allowance in params.seam_allowances.values()):
-                score += 0.3
+        overall_style = sum(style_scores) / len(style_scores) if style_scores else 0.5
         
-        # Check for reasonable ease amounts
+        # Enhance ease amounts for better fit
         if hasattr(params, 'ease_amounts'):
-            if all(0 <= ease <= 100 for ease in params.ease_amounts.values()):
-                score += 0.3
+            for key in params.ease_amounts:
+                # More sophisticated ease calculation
+                base_ease = params.ease_amounts[key]
+                style_modifier = (overall_style - 0.5) * 20  # -10 to +10mm
+                params.ease_amounts[key] = max(base_ease + style_modifier, 10)  # Minimum 10mm ease
         
-        return min(1.0, score)
+        # Enhance waist suppression for better silhouette
+        if hasattr(params, 'waist_suppression'):
+            elegance_scores = [p.get('elegance', 0.5) for p in cppn_params.values()]
+            avg_elegance = sum(elegance_scores) / len(elegance_scores) if elegance_scores else 0.5
+            params.waist_suppression = avg_elegance * 0.4  # 0 to 0.4 suppression
+        
+        return params
     
-    def _evaluate_aesthetics(self, design: FashionDesign) -> float:
-        """Evaluate aesthetic appeal of the design"""
+    def _analyze_genome_style(self, genome: GarmentGenome) -> Dict:
+        """Analyze genome to determine style characteristics"""
+        
+        # Analyze genome structure for style cues
+        num_nodes = len(genome.nodes)
+        num_connections = len(genome.connections)
+        complexity = (num_nodes + num_connections) / 30.0  # Normalize complexity
+        
+        # Analyze activation functions for style personality
+        activations = [node.get('activation', 'linear') for node in genome.nodes]
+        activation_diversity = len(set(activations)) / max(len(activations), 1)
+        
+        # Determine style characteristics
+        style_chars = {
+            'complexity': min(complexity, 1.0),
+            'diversity': activation_diversity,
+            'elegance': genome.fitness,  # Higher fitness = more elegant
+            'drama': complexity * activation_diversity,
+            'sophistication': genome.fitness * activation_diversity,
+        }
+        
+        # Determine primary style theme
+        if style_chars['elegance'] > 0.8 and style_chars['sophistication'] > 0.6:
+            style_chars['theme'] = 'elegant_evening'
+        elif style_chars['drama'] > 0.7:
+            style_chars['theme'] = 'bohemian_artistic'
+        elif style_chars['complexity'] < 0.3:
+            style_chars['theme'] = 'modern_minimalist'
+        elif style_chars['elegance'] > 0.6:
+            style_chars['theme'] = 'romantic_vintage'
+        else:
+            style_chars['theme'] = 'casual_chic'
+        
+        return style_chars
+    
+    def _generate_color_palette(self, fitness: float, style_characteristics: Dict) -> List:
+        """Generate beautiful color palette based on design characteristics"""
+        
+        theme = style_characteristics.get('theme', 'casual_chic')
+        elegance = style_characteristics.get('elegance', 0.5)
+        
+        # Theme-based color palettes
+        theme_palettes = {
+            'elegant_evening': [
+                [(0.1, 0.1, 0.2), (0.2, 0.1, 0.3), (0.3, 0.2, 0.4)],  # Deep purples
+                [(0.1, 0.1, 0.1), (0.2, 0.2, 0.2), (0.3, 0.3, 0.3)],  # Elegant blacks
+                [(0.2, 0.1, 0.1), (0.3, 0.2, 0.2), (0.4, 0.3, 0.3)]   # Deep burgundy
+            ],
+            'romantic_vintage': [
+                [(1.0, 0.8, 0.9), (0.9, 0.7, 0.8), (1.0, 0.9, 0.95)],  # Soft pinks
+                [(0.9, 0.8, 0.7), (0.8, 0.7, 0.6), (0.95, 0.85, 0.75)], # Cream/beige
+                [(0.7, 0.8, 0.9), (0.6, 0.7, 0.8), (0.8, 0.85, 0.9)]   # Soft blues
+            ],
+            'modern_minimalist': [
+                [(1.0, 1.0, 1.0), (0.95, 0.95, 0.95), (0.9, 0.9, 0.9)], # Pure whites
+                [(0.8, 0.8, 0.8), (0.7, 0.7, 0.7), (0.6, 0.6, 0.6)],   # Clean grays
+                [(0.9, 0.9, 0.8), (0.85, 0.85, 0.75), (0.8, 0.8, 0.7)] # Off-whites
+            ],
+            'bohemian_artistic': [
+                [(0.8, 0.5, 0.2), (0.7, 0.4, 0.1), (0.9, 0.6, 0.3)],   # Warm oranges
+                [(0.6, 0.3, 0.5), (0.5, 0.2, 0.4), (0.7, 0.4, 0.6)],   # Deep purples
+                [(0.3, 0.6, 0.4), (0.2, 0.5, 0.3), (0.4, 0.7, 0.5)]    # Earth greens
+            ],
+            'casual_chic': [
+                [(0.4, 0.6, 0.8), (0.3, 0.5, 0.7), (0.5, 0.7, 0.9)],   # Casual blues
+                [(0.8, 0.6, 0.4), (0.7, 0.5, 0.3), (0.9, 0.7, 0.5)],   # Warm tans
+                [(0.6, 0.8, 0.6), (0.5, 0.7, 0.5), (0.7, 0.9, 0.7)]    # Fresh greens
+            ],
+            'business_professional': [
+                [(0.2, 0.2, 0.3), (0.1, 0.1, 0.2), (0.3, 0.3, 0.4)],   # Navy blues
+                [(0.3, 0.3, 0.3), (0.2, 0.2, 0.2), (0.4, 0.4, 0.4)],   # Charcoal grays
+                [(0.2, 0.3, 0.2), (0.1, 0.2, 0.1), (0.3, 0.4, 0.3)]    # Forest greens
+            ]
+        }
+        
+        # Select palette based on theme and fitness
+        theme_options = theme_palettes.get(theme, theme_palettes['casual_chic'])
+        palette_index = min(int(elegance * len(theme_options)), len(theme_options) - 1)
+        
+        return theme_options[palette_index]
+    
+    def _enhance_patterns_for_visualization(self, patterns: List[Dict], style_characteristics: Dict) -> List[Dict]:
+        """Enhance pattern pieces for better visualization"""
+        
+        enhanced_patterns = []
+        
+        for pattern in patterns:
+            enhanced_pattern = pattern.copy()
+            
+            # Add style-specific modifications to vertices if needed
+            if 'vertices' in pattern and len(pattern['vertices']) > 0:
+                vertices = np.array(pattern['vertices'])
+                
+                # Apply style-based modifications
+                drama_factor = style_characteristics.get('drama', 0.5)
+                if drama_factor > 0.7:  # High drama = more flowing shapes
+                    # Add slight curve to straight edges
+                    enhanced_pattern['style_modifications'] = 'dramatic_curves'
+                elif drama_factor < 0.3:  # Low drama = cleaner lines
+                    enhanced_pattern['style_modifications'] = 'clean_lines'
+                
+                enhanced_pattern['style_score'] = style_characteristics.get('elegance', 0.5)
+            
+            enhanced_patterns.append(enhanced_pattern)
+        
+        return enhanced_patterns
+    
+    def _create_enhanced_3d_mesh(self, patterns: List[Dict], construction_params: ConstructionParameters, 
+                                style_characteristics: Dict) -> Optional[trimesh.Trimesh]:
+        """Create enhanced 3D mesh with fallback to beautiful procedural generation"""
+        
+        try:
+            # Try the cloth simulator first
+            mesh_3d = self.cloth_simulator.simulate_garment(
+                patterns, self.body_model, construction_params
+            )
+            
+            if mesh_3d is not None and len(mesh_3d.vertices) > 10:
+                return mesh_3d
+                
+        except Exception as e:
+            print(f"   Cloth simulation failed: {e}")
+        
+        # Fallback to procedural mesh generation based on style
+        return self._create_procedural_dress_mesh(construction_params, style_characteristics)
+    
+    def _create_procedural_dress_mesh(self, construction_params: ConstructionParameters, 
+                                    style_characteristics: Dict) -> trimesh.Trimesh:
+        """Create beautiful procedural dress mesh"""
+        
+        measurements = self.body_model.get_measurements()
+        
+        # Generate dress shape based on style
+        theme = style_characteristics.get('theme', 'casual_chic')
+        elegance = style_characteristics.get('elegance', 0.5)
+        drama = style_characteristics.get('drama', 0.5)
+        
+        # Define dress parameters
+        if theme == 'elegant_evening':
+            waist_factor = 0.6
+            hem_flare = 2.0 + drama * 0.5
+            length_factor = 1.2
+        elif theme == 'bohemian_artistic':
+            waist_factor = 0.7
+            hem_flare = 2.2 + drama * 0.8
+            length_factor = 1.1
+        elif theme == 'modern_minimalist':
+            waist_factor = 0.8
+            hem_flare = 1.2
+            length_factor = 1.0
+        else:  # casual_chic, romantic_vintage, business_professional
+            waist_factor = 0.7
+            hem_flare = 1.5 + drama * 0.3
+            length_factor = 1.0
+        
+        # Create dress geometry
+        vertices, faces = self._generate_dress_mesh_geometry(
+            measurements, waist_factor, hem_flare, length_factor, elegance
+        )
+        
+        try:
+            mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+            mesh.remove_degenerate_faces()
+            return mesh
+        except Exception as e:
+            print(f"   Procedural mesh creation failed: {e}")
+            return self._create_minimal_dress_mesh(measurements)
+    
+    def _generate_dress_mesh_geometry(self, measurements: Dict, waist_factor: float, 
+                                    hem_flare: float, length_factor: float, elegance: float):
+        """Generate detailed dress mesh geometry"""
+        
+        # Base measurements
+        shoulder_w = measurements.get('shoulder_width', 460) / 2
+        bust_w = (measurements.get('bust_width', 500) + 60) / 2  # Add ease
+        waist_w = (measurements.get('waist_width', 420) * waist_factor + 40) / 2
+        hip_w = (measurements.get('hip_width', 550) + 80) / 2
+        hem_w = hip_w * hem_flare
+        
+        # Heights
+        shoulder_h = measurements.get('shoulder_height', 1420)
+        bust_h = measurements.get('bust_height', 1260)
+        waist_h = measurements.get('waist_height', 1080)
+        hip_h = measurements.get('hip_height', 920)
+        hem_h = hip_h - (350 * length_factor)
+        
+        # Create dress silhouette points
+        front_silhouette = [
+            (0, shoulder_h + 20, 30),  # Neckline center
+            (shoulder_w * 0.3, shoulder_h + 10, 35),  # Neckline side
+            (shoulder_w * 0.8, shoulder_h - 10, 30),  # Shoulder
+            (bust_w, bust_h + 30, 40),  # Armhole
+            (bust_w * (1 + elegance * 0.2), bust_h, 45),  # Bust
+            (waist_w, waist_h, 35),  # Waist
+            (hip_w, hip_h, 30),  # Hip
+            (hem_w, hem_h, 25),  # Hem
+            (0, hem_h, 25),  # Center front hem
+        ]
+        
+        # Mirror for back (slightly different proportions)
+        back_silhouette = []
+        for x, y, z in front_silhouette:
+            back_x = x * 0.95
+            back_z = -z - 30
+            back_silhouette.append((back_x, y, back_z))
+        
+        # Generate mesh vertices and faces
+        vertices = []
+        faces = []
+        
+        # Add front and back silhouette points
+        vertices.extend(front_silhouette)
+        vertices.extend(back_silhouette)
+        
+        # Create triangular faces
+        n_front = len(front_silhouette)
+        n_back = len(back_silhouette)
+        
+        # Front triangles
+        for i in range(n_front - 2):
+            faces.append([0, i + 1, i + 2])
+        
+        # Back triangles
+        for i in range(n_back - 2):
+            faces.append([n_front, n_front + i + 1, n_front + i + 2])
+        
+        # Side triangles connecting front and back
+        for i in range(min(n_front, n_back) - 1):
+            # Right side
+            faces.append([i, n_front + i, i + 1])
+            faces.append([n_front + i, n_front + i + 1, i + 1])
+        
+        return np.array(vertices), np.array(faces)
+    
+    def _create_minimal_dress_mesh(self, measurements: Dict) -> trimesh.Trimesh:
+        """Create minimal fallback dress mesh"""
+        
+        # Very simple dress shape
+        w = measurements.get('hip_width', 550) / 2 + 100
+        h_top = measurements.get('shoulder_height', 1420)
+        h_bottom = measurements.get('hip_height', 920) - 300
+        
+        vertices = np.array([
+            [-w/2, h_top, 30], [w/2, h_top, 30], [w, h_bottom, 20],
+            [-w, h_bottom, 20], [0, h_top, -30], [w/2, h_bottom, -20], [-w/2, h_bottom, -20]
+        ])
+        
+        faces = np.array([
+            [0, 1, 2], [0, 2, 3], [4, 5, 6], [1, 4, 5], [0, 3, 6], [0, 6, 4]
+        ])
+        
+        return trimesh.Trimesh(vertices=vertices, faces=faces)
+    
+    def _generate_design_notes(self, construction_params: ConstructionParameters, 
+                             style_characteristics: Dict, fitness: float) -> List[str]:
+        """Generate descriptive design notes"""
+        
+        notes = []
+        theme = style_characteristics.get('theme', 'casual_chic')
+        elegance = style_characteristics.get('elegance', 0.5)
+        
+        # Theme-based descriptions
+        theme_descriptions = {
+            'elegant_evening': "Sophisticated evening wear with refined silhouette",
+            'romantic_vintage': "Soft, feminine design with vintage charm",
+            'modern_minimalist': "Clean lines and contemporary sophistication", 
+            'bohemian_artistic': "Free-flowing design with artistic flair",
+            'casual_chic': "Effortlessly stylish everyday elegance",
+            'business_professional': "Polished, professional wardrobe staple"
+        }
+        
+        notes.append(theme_descriptions.get(theme, "Beautiful custom design"))
+        
+        # Fit and construction notes
+        if hasattr(construction_params, 'ease_amounts'):
+            avg_ease = sum(construction_params.ease_amounts.values()) / len(construction_params.ease_amounts)
+            if avg_ease > 80:
+                notes.append("Relaxed, comfortable fit")
+            elif avg_ease < 50:
+                notes.append("Fitted, tailored silhouette")
+            else:
+                notes.append("Classic, flattering fit")
+        
+        # Quality assessment
+        if fitness > 0.8:
+            notes.append("Premium design quality")
+        elif fitness > 0.6:
+            notes.append("Well-crafted design")
+        else:
+            notes.append("Experimental design concept")
+        
+        # Style details
+        if elegance > 0.7:
+            notes.append("Elegant draping and proportions")
+        
+        return notes
+    
+    def evaluate_design_beauty(self, design: FashionDesign) -> float:
+        """Evaluate design beauty and wearability"""
+        
         score = 0.0
         
-        # Proportion harmony (golden ratio, etc.)
-        if design.mesh_3d:
-            bounds = design.mesh_3d.bounds
-            width = bounds[1][0] - bounds[0][0]
-            height = bounds[1][1] - bounds[0][1]
-            
-            if height > 0:
-                ratio = width / height
-                golden_ratio = 1.618
-                proportion_score = 1.0 - abs(ratio - golden_ratio) / golden_ratio
-                score += proportion_score * 0.5
+        # Base fitness contribution (40%)
+        score += design.fitness * 0.4
         
-        # Symmetry vs asymmetry balance
+        # Style coherence (30%)
+        style_score = self._evaluate_style_coherence(design)
+        score += style_score * 0.3
+        
+        # Visual appeal (20%)
+        visual_score = self._evaluate_visual_appeal(design)
+        score += visual_score * 0.2
+        
+        # Construction quality (10%)
+        construction_score = self._evaluate_construction_quality(design)
+        score += construction_score * 0.1
+        
+        return min(score, 1.0)
+    
+    def _evaluate_style_coherence(self, design: FashionDesign) -> float:
+        """Evaluate how well style elements work together"""
+        
+        style_chars = design.style_characteristics
+        theme = style_chars.get('theme', 'casual_chic')
+        elegance = style_chars.get('elegance', 0.5)
+        complexity = style_chars.get('complexity', 0.5)
+        
+        # Check if complexity matches theme expectations
+        theme_complexity_expectations = {
+            'elegant_evening': (0.6, 1.0),
+            'modern_minimalist': (0.0, 0.4),
+            'bohemian_artistic': (0.7, 1.0),
+            'romantic_vintage': (0.4, 0.8),
+            'casual_chic': (0.2, 0.7),
+            'business_professional': (0.3, 0.6)
+        }
+        
+        expected_range = theme_complexity_expectations.get(theme, (0.3, 0.7))
+        if expected_range[0] <= complexity <= expected_range[1]:
+            coherence = 1.0
+        else:
+            # Calculate how far off we are
+            if complexity < expected_range[0]:
+                coherence = complexity / expected_range[0]
+            else:
+                coherence = expected_range[1] / complexity
+        
+        # Elegance should generally align with fitness
+        elegance_alignment = 1.0 - abs(elegance - design.fitness)
+        
+        return (coherence + elegance_alignment) / 2
+    
+    def _evaluate_visual_appeal(self, design: FashionDesign) -> float:
+        """Evaluate visual appeal of the design"""
+        
+        score = 0.0
+        
+        # Color palette harmony
+        colors = design.color_palette
+        if len(colors) >= 2:
+            # Check color harmony (simplified)
+            color_variance = np.var([sum(color) for color in colors])
+            if 0.1 <= color_variance <= 0.3:  # Good color variation
+                score += 0.4
+            else:
+                score += 0.2
+        
+        # Style characteristics appeal
+        style_chars = design.style_characteristics
+        drama = style_chars.get('drama', 0.5)
+        sophistication = style_chars.get('sophistication', 0.5)
+        
+        # Balance between drama and sophistication
+        balance = 1.0 - abs(drama - sophistication)
+        score += balance * 0.3
+        
+        # Pattern complexity appeal
+        pattern_count = len(design.pattern_pieces)
+        if 3 <= pattern_count <= 8:  # Good pattern count
+            score += 0.3
+        else:
+            score += 0.1
+        
+        return min(score, 1.0)
+    
+    def _evaluate_construction_quality(self, design: FashionDesign) -> float:
+        """Evaluate construction feasibility and quality"""
+        
+        score = 0.0
+        
+        # Check pattern pieces
+        for pattern in design.pattern_pieces:
+            if 'vertices' in pattern and len(pattern['vertices']) >= 3:
+                # Check for reasonable proportions
+                vertices = np.array(pattern['vertices'])
+                area = self._calculate_polygon_area(vertices)
+                perimeter = self._calculate_polygon_perimeter(vertices)
+                
+                if 1000 < area < 500000 and 200 < perimeter < 3000:
+                    score += 0.3
+        
+        # Check construction parameters
         params = design.construction_params
-        if hasattr(params, 'asymmetry_factor'):
-            # Sweet spot for fashion asymmetry
-            asymmetry_score = 1.0 - abs(params.asymmetry_factor - 0.15) / 0.15
-            score += max(0, asymmetry_score) * 0.3
+        if hasattr(params, 'ease_amounts'):
+            reasonable_ease = all(10 <= ease <= 150 for ease in params.ease_amounts.values())
+            if reasonable_ease:
+                score += 0.4
         
-        # Complexity - not too simple, not too complex
-        genome_complexity = len(design.genome.nodes) + len(design.genome.connections)
-        complexity_score = 1.0 - abs(genome_complexity - 20) / 20
-        score += max(0, complexity_score) * 0.2
+        if hasattr(params, 'seam_allowances'):
+            reasonable_seams = all(5 <= sa <= 25 for sa in params.seam_allowances.values())
+            if reasonable_seams:
+                score += 0.3
         
-        return min(1.0, score)
+        return min(score, 1.0)
     
     def _calculate_polygon_area(self, vertices: np.ndarray) -> float:
-        """Calculate area of polygon using shoelace formula"""
+        """Calculate polygon area using shoelace formula"""
+        if len(vertices) < 3:
+            return 0.0
         x = vertices[:, 0]
         y = vertices[:, 1]
         return 0.5 * abs(sum(x[i] * y[i+1] - x[i+1] * y[i] 
                             for i in range(-1, len(x)-1)))
     
     def _calculate_polygon_perimeter(self, vertices: np.ndarray) -> float:
-        """Calculate perimeter of polygon"""
+        """Calculate polygon perimeter"""
+        if len(vertices) < 2:
+            return 0.0
         perimeter = 0.0
         for i in range(len(vertices)):
             next_i = (i + 1) % len(vertices)
             perimeter += np.linalg.norm(vertices[next_i] - vertices[i])
         return perimeter
     
-    def run_evolution(self, generations: int = 10, population_size: int = 16):
-        """Run the complete 3D fashion evolution process"""
+    def run_beautiful_evolution(self, generations: int = 8, population_size: int = 12):
+        """Run enhanced evolution focused on beautiful results"""
         
-        # Create timestamped folder for results
-        import datetime
+        # Create timestamped results folder
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_folder = f"fashion_evolution_{timestamp}"
-        import os
+        results_folder = f"beautiful_fashion_evolution_{timestamp}"
         os.makedirs(results_folder, exist_ok=True)
-        print(f"📁 Results will be saved to: {results_folder}")
         
-        print(f"\n🧬 Starting 3D Fashion Evolution")
-        print(f"   Generations: {generations}")
-        print(f"   Population: {population_size}")
-        print(f"   Garment Type: {self.garment_type.value}")
+        print(f"✨ Starting Beautiful Fashion Evolution")
+        print(f"🎨 Generations: {generations}")
+        print(f"👗 Population: {population_size}")
+        print(f"📁 Results folder: {results_folder}")
+        print(f"🎯 Focus: {self.garment_type.value}")
         
         # Initialize population
         population = self.evolution_engine.create_initial_population(
             population_size, self.garment_type.value
         )
         
+        all_generations_data = []
+        
         for generation in range(generations):
-            print(f"\n👗 Generation {generation + 1}/{generations}")
-            print("-" * 40)
+            print(f"\n🌟 Generation {generation + 1}/{generations}")
+            print("=" * 50)
             
-            # Create designs from genomes
+            # Create beautiful designs from genomes
             designs = []
             for i, genome in enumerate(population):
-                print(f"   Creating design {i+1}/{len(population)}...")
+                print(f"   Creating beautiful design {i+1}/{len(population)}...")
                 try:
-                    design = self.create_design_from_genome(genome)
+                    design = self.create_enhanced_design_from_genome(genome)
                     design.generation = generation
                     designs.append(design)
                 except Exception as e:
-                    print(f"   ⚠️  Failed to create design {i+1}: {e}")
-                    # Create a minimal fallback design
+                    print(f"   ⚠️  Design creation failed: {e}")
+                    # Create minimal fallback
                     fallback_design = FashionDesign(
                         genome=genome,
                         construction_params=ConstructionParameters.create_default(self.garment_type.value),
                         pattern_pieces=[],
-                        fitness=0.0,
+                        fitness=random.uniform(0.1, 0.3),
                         generation=generation
                     )
                     designs.append(fallback_design)
             
-            # Evaluate designs
-            print("   Evaluating designs...")
+            # Evaluate beauty and wearability
+            print("   Evaluating design beauty...")
             for design in designs:
-                design.fitness = self.evaluate_design_wearability(design)
+                beauty_score = self.evaluate_design_beauty(design)
+                design.fitness = beauty_score
+                design.genome.fitness = beauty_score
             
-            # Display results
-            self.display_generation(designs, generation, results_folder)
-            
-            # Select best designs for breeding
-            designs.sort(key=lambda d: d.fitness, reverse=True)
-            selected_designs = designs[:population_size//2]
-            
-            print(f"   Best fitness: {selected_designs[0].fitness:.3f}")
-            print(f"   Average fitness: {np.mean([d.fitness for d in designs]):.3f}")
+            # Display beautiful results
+            self.display_beautiful_generation(designs, generation, results_folder)
             
             # Save generation data
-            self._save_generation_data(designs, generation, results_folder)
+            generation_data = [design.to_dict() for design in designs]
+            all_generations_data.append(generation_data)
+            
+            # Print generation statistics
+            fitnesses = [d.fitness for d in designs]
+            print(f"   🏆 Best fitness: {max(fitnesses):.3f}")
+            print(f"   📊 Average fitness: {np.mean(fitnesses):.3f}")
+            print(f"   🎨 Best theme: {max(designs, key=lambda d: d.fitness).style_characteristics.get('theme', 'unknown')}")
             
             # Evolve to next generation
             if generation < generations - 1:
-                # Copy fitness from designs back to genomes for evolution
-                for design in designs:
-                    design.genome.fitness = design.fitness
-                
                 population = self.evolution_engine.evolve_population(
-                    [d.genome for d in selected_designs],
-                    population_size
+                    [d.genome for d in designs], population_size
                 )
         
-        print("\n🎉 Evolution complete!")
-        
-        # Save final results
-        self.save_best_design(designs, os.path.join(results_folder, f"best_{self.garment_type.value}_design"))
+        # Create final showcase
+        print(f"\n🎉 Evolution Complete! Creating final showcase...")
+        self.create_final_fashion_showcase(all_generations_data, results_folder)
         
         return designs
     
-    def _save_generation_data(self, designs: List[FashionDesign], generation: int, results_folder: str):
-        """Save generation data to JSON"""
-        import os
+    def display_beautiful_generation(self, designs: List[FashionDesign], 
+                                   generation: int, results_folder: str):
+        """Display beautiful generation with enhanced visualization"""
         
-        generation_data = {
-            'generation': generation + 1,
-            'designs': [design.to_dict() for design in designs],
-            'best_fitness': max(d.fitness for d in designs),
-            'average_fitness': np.mean([d.fitness for d in designs]),
-            'design_count': len(designs)
+        # Use enhanced renderer to display designs
+        design_dicts = []
+        for design in designs:
+            design_dict = {
+                'fitness': design.fitness,
+                'generation': design.generation,
+                'construction_params': design.construction_params,
+                'style_characteristics': design.style_characteristics,
+                'color_palette': design.color_palette,
+                'design_notes': design.design_notes
+            }
+            design_dicts.append(design_dict)
+        
+        # Create beautiful visualization
+        save_path = os.path.join(results_folder, f'generation_{generation + 1}_beautiful_dresses.png')
+        
+        try:
+            self.renderer.render_design_comparison(design_dicts, self.body_model, save_path)
+            print(f"   🖼️  Beautiful visualization saved to {save_path}")
+        except Exception as e:
+            print(f"   ⚠️  Visualization failed: {e}")
+    
+    def create_final_fashion_showcase(self, all_generations_data: List[List[Dict]], 
+                                    results_folder: str):
+        """Create stunning final fashion showcase"""
+        
+        showcase_path = os.path.join(results_folder, 'final_fashion_showcase.png')
+        
+        try:
+            self.renderer.create_evolution_showcase(all_generations_data, self.body_model, showcase_path)
+            print(f"   🎨 Final showcase created: {showcase_path}")
+        except Exception as e:
+            print(f"   ⚠️  Showcase creation failed: {e}")
+        
+        # Save detailed results
+        final_data = {
+            'evolution_summary': {
+                'total_generations': len(all_generations_data),
+                'garment_type': self.garment_type.value,
+                'timestamp': datetime.datetime.now().isoformat()
+            },
+            'all_generations': all_generations_data
         }
         
-        filename = os.path.join(results_folder, f"generation_{generation + 1}_data.json")
-        with open(filename, 'w') as f:
-            json.dump(generation_data, f, indent=2, default=str)
+        data_path = os.path.join(results_folder, 'complete_evolution_data.json')
+        with open(data_path, 'w') as f:
+            json.dump(final_data, f, indent=2, default=str)
         
-        print(f"   💾 Saved generation data to {filename}")
-    
-    def display_generation(self, designs: List[FashionDesign], generation: int, results_folder: str = "."):
-        """Display the current generation of designs"""
-        import os
-        
-        # Create visualization
-        n_designs = min(len(designs), 9)  # Show top 9
-        fig = plt.figure(figsize=(15, 10))
-        
-        print(f"   Creating visualization with {n_designs} designs...")
-        
-        for i in range(n_designs):
-            design = designs[i]
-            
-            # Create subplot for 3D visualization
-            ax = fig.add_subplot(3, 3, i+1, projection='3d')
-            
-            # Always draw a realistic dress
-            self._draw_realistic_dress(ax, design, i+1)
-            
-            ax.set_title(f'Design {i+1}\nFitness: {design.fitness:.3f}', fontsize=10)
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')
-            
-            # Set equal aspect ratio
-            max_range = 400  # mm
-            ax.set_xlim([-max_range, max_range])
-            ax.set_ylim([500, 1600])
-            ax.set_zlim([-max_range, max_range])
-            
-            # Set viewing angle for better dress visibility
-            ax.view_init(elev=10, azim=45)
-        
-        plt.suptitle(f'3D Fashion Evolution - Generation {generation + 1}', fontsize=16)
-        plt.tight_layout()
-        
-        # Save the image
-        filename = os.path.join(results_folder, f'generation_{generation + 1}_3d.png')
-        plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
-        print(f"   💾 Saved visualization to {filename}")
-        
-        # Force display and keep window open
-        plt.show(block=False)
-        plt.pause(0.1)  # Brief pause to ensure rendering
-        
-        # Also create a simple summary image
-        self._create_summary_image(designs, generation, results_folder)
-        
-        plt.close(fig)  # Close to prevent memory issues
-    
-    def _draw_realistic_dress(self, ax, design: FashionDesign, design_number: int):
-        """Draw a clear, recognizable dress shape on a human mannequin"""
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-        
-        measurements = self.body_model.get_measurements()
-        
-        # First, draw a clear human mannequin
-        self._draw_human_mannequin(ax, measurements)
-        
-        # Get dress parameters from construction params or use defaults
-        if hasattr(design, 'construction_params') and design.construction_params:
-            params = design.construction_params
-            bust_ease = params.ease_amounts.get('bust', 80)
-            waist_ease = params.ease_amounts.get('waist', 60) 
-            hip_ease = params.ease_amounts.get('hip', 100)
-            hem_curve = getattr(params, 'hem_curve', 0)
-        else:
-            bust_ease = 80
-            waist_ease = 60
-            hip_ease = 100
-            hem_curve = 0
-        
-        # Calculate dress measurements (body + ease)
-        bust_width = (measurements.get('bust_width', 500) + bust_ease) / 2
-        waist_width = (measurements['waist_width'] + waist_ease) / 2
-        hip_width = (measurements['hip_width'] + hip_ease) / 2
-        
-        # Add variation based on fitness - higher fitness = more flattering proportions
-        fitness_factor = design.fitness
-        waist_suppression = 0.8 + (fitness_factor * 0.4)  # 0.8 to 1.2 multiplier
-        hem_flare = 1.2 + (fitness_factor * 0.3)  # 1.2 to 1.5 multiplier
-        
-        waist_width *= waist_suppression
-        hem_width = hip_width * hem_flare
-        
-        # Dress key heights
-        neckline_height = measurements['neck_height'] - 30
-        bust_height = measurements.get('bust_height', 1260)
-        waist_height = measurements['waist_height']
-        hip_height = measurements['hip_height']
-        hem_height = hip_height - 350  # Knee-length dress
-        
-        # Create dress front silhouette - clear A-line shape
-        dress_front_points = [
-            # Neckline (scooped)
-            (-measurements['neck_width']/4, neckline_height, measurements['neck_depth']/2 + 25),
-            (measurements['neck_width']/4, neckline_height, measurements['neck_depth']/2 + 25),
-            
-            # Shoulders/armholes
-            (bust_width * 0.9, neckline_height + 30, measurements['chest_depth']/2 + 20),
-            (-bust_width * 0.9, neckline_height + 30, measurements['chest_depth']/2 + 20),
-            
-            # Bust area - fuller
-            (bust_width, bust_height, measurements.get('bust_depth', 250)/2 + 20),
-            (-bust_width, bust_height, measurements.get('bust_depth', 250)/2 + 20),
-            
-            # Waist - fitted
-            (waist_width, waist_height, measurements['waist_depth']/2 + 15),
-            (-waist_width, waist_height, measurements['waist_depth']/2 + 15),
-            
-            # Hip - slightly flared
-            (hip_width * 1.1, hip_height, measurements['hip_depth']/2 + 15),
-            (-hip_width * 1.1, hip_height, measurements['hip_depth']/2 + 15),
-            
-            # Hem - A-line flare with curve variation
-            (hem_width + hem_curve, hem_height, measurements['hip_depth']/2 + 10),
-            (-hem_width - hem_curve, hem_height, measurements['hip_depth']/2 + 10),
-        ]
-        
-        # Create dress back (slightly different proportions)
-        dress_back_points = []
-        for point in dress_front_points:
-            x, y, z = point
-            # Move to back, make slightly narrower
-            back_z = -measurements['back_depth']/2 - 15
-            back_x = x * 0.95  # Slightly narrower back
-            dress_back_points.append((back_x, y, back_z))
-        
-        # Convert to numpy arrays
-        dress_front = np.array(dress_front_points)
-        dress_back = np.array(dress_back_points)
-        
-        # Color scheme based on fitness - better dresses get better colors
-        base_colors = [
-            [1.0, 0.7, 0.8],    # Pink
-            [0.8, 0.6, 1.0],    # Lavender  
-            [0.6, 0.8, 1.0],    # Light blue
-            [0.8, 1.0, 0.6],    # Light green
-            [1.0, 0.9, 0.6],    # Light yellow
-        ]
-        
-        color_index = min(int(fitness_factor * len(base_colors)), len(base_colors) - 1)
-        dress_color = base_colors[color_index]
-        
-        # Draw dress as clean surfaces
-        try:
-            # Create front dress panel
-            front_triangles = self._create_dress_triangles(dress_front)
-            if front_triangles:
-                front_poly = Poly3DCollection(front_triangles, alpha=0.85, linewidths=1.0)
-                front_poly.set_facecolor(dress_color)
-                front_poly.set_edgecolor([c * 0.7 for c in dress_color])
-                ax.add_collection3d(front_poly)
-            
-            # Create back dress panel
-            back_triangles = self._create_dress_triangles(dress_back)
-            if back_triangles:
-                back_poly = Poly3DCollection(back_triangles, alpha=0.75, linewidths=0.8)
-                back_color = [c * 0.85 for c in dress_color]  # Slightly darker back
-                back_poly.set_facecolor(back_color)
-                back_poly.set_edgecolor([c * 0.6 for c in back_color])
-                ax.add_collection3d(back_poly)
-            
-            # Connect front and back with side panels for 3D effect
-            side_triangles = self._create_side_panels(dress_front, dress_back)
-            if side_triangles:
-                side_poly = Poly3DCollection(side_triangles, alpha=0.6, linewidths=0.5)
-                side_color = [c * 0.9 for c in dress_color]
-                side_poly.set_facecolor(side_color)
-                side_poly.set_edgecolor([c * 0.5 for c in side_color])
-                ax.add_collection3d(side_poly)
-                
-        except Exception as e:
-            print(f"   Warning: Advanced dress rendering failed: {e}")
-            # Fallback to simple wireframe
-            ax.plot(dress_front[:, 0], dress_front[:, 1], dress_front[:, 2], 
-                   color=dress_color, linewidth=4, alpha=0.9, label='Dress Front')
-            ax.plot(dress_back[:, 0], dress_back[:, 1], dress_back[:, 2], 
-                   color=[c * 0.8 for c in dress_color], linewidth=3, alpha=0.8, label='Dress Back')
-        
-        # Add dress details
-        self._add_dress_details(ax, dress_front, dress_color, fitness_factor)
-        
-        # Clear, readable label
-        label_color = 'navy' if sum(dress_color) > 2.0 else 'white'
-        ax.text(0, measurements['neck_height'] + 150, 100, 
-               f'DRESS {design_number}\nFitness: {design.fitness:.3f}', 
-               ha='center', va='center', fontsize=11, fontweight='bold', 
-               color=label_color,
-               bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.9, edgecolor='gray'))
-
-    def _draw_human_mannequin(self, ax, measurements):
-        """Draw a clear human mannequin"""
-        
-        # Head
-        head_center = [0, measurements['neck_height'] + 120, 0]
-        ax.scatter(*head_center, c='peachpuff', s=400, alpha=0.8, marker='o', edgecolors='brown', linewidth=1)
-        
-        # Neck
-        neck_points = [
-            [0, measurements['neck_height'], 0],
-            [0, measurements['neck_height'] + 80, 0]
-        ]
-        neck_line = np.array(neck_points)
-        ax.plot(neck_line[:, 0], neck_line[:, 1], neck_line[:, 2], 
-               color='peachpuff', linewidth=8, alpha=0.8)
-        
-        # Body outline - cleaner mannequin shape
-        body_points = [
-            # Shoulders
-            [-measurements['shoulder_width']/2, measurements['shoulder_height'], 0],
-            [measurements['shoulder_width']/2, measurements['shoulder_height'], 0],
-            
-            # Chest
-            [measurements['chest_width']/2, measurements['chest_height'], 0],
-            [-measurements['chest_width']/2, measurements['chest_height'], 0],
-            
-            # Waist  
-            [measurements['waist_width']/2, measurements['waist_height'], 0],
-            [-measurements['waist_width']/2, measurements['waist_height'], 0],
-            
-            # Hips
-            [measurements['hip_width']/2, measurements['hip_height'], 0],
-            [-measurements['hip_width']/2, measurements['hip_height'], 0],
-            
-            # Legs (simplified)
-            [measurements['hip_width']/4, measurements['hip_height'] - 300, 0],
-            [-measurements['hip_width']/4, measurements['hip_height'] - 300, 0],
-        ]
-        
-        # Draw body outline
-        body_outline = np.array(body_points)
-        ax.plot(body_outline[::2, 0], body_outline[::2, 1], body_outline[::2, 2], 
-               color='tan', linewidth=3, alpha=0.7, label='Body')  # Right side
-        ax.plot(body_outline[1::2, 0], body_outline[1::2, 1], body_outline[1::2, 2], 
-               color='tan', linewidth=3, alpha=0.7)  # Left side
-        
-        # Arms (simple)
-        # Right arm
-        right_arm = np.array([
-            [measurements['shoulder_width']/2, measurements['shoulder_height'], 0],
-            [measurements['shoulder_width']/2 + 80, measurements['shoulder_height'] - 100, 0],
-            [measurements['shoulder_width']/2 + 60, measurements['waist_height'], 0]
-        ])
-        ax.plot(right_arm[:, 0], right_arm[:, 1], right_arm[:, 2], 
-               color='tan', linewidth=4, alpha=0.6)
-        
-        # Left arm  
-        left_arm = np.array([
-            [-measurements['shoulder_width']/2, measurements['shoulder_height'], 0],
-            [-measurements['shoulder_width']/2 - 80, measurements['shoulder_height'] - 100, 0],
-            [-measurements['shoulder_width']/2 - 60, measurements['waist_height'], 0]
-        ])
-        ax.plot(left_arm[:, 0], left_arm[:, 1], left_arm[:, 2], 
-               color='tan', linewidth=4, alpha=0.6)
-
-    def _create_dress_triangles(self, dress_points):
-        """Create triangular mesh for dress surface"""
-        triangles = []
-        
-        # Create triangular strips for smooth dress surface
-        for i in range(0, len(dress_points) - 3, 2):
-            if i + 3 < len(dress_points):
-                # Create two triangles for each "band" of the dress
-                triangle1 = [dress_points[i], dress_points[i+1], dress_points[i+2]]
-                triangle2 = [dress_points[i+1], dress_points[i+2], dress_points[i+3]]
-                triangles.extend([triangle1, triangle2])
-        
-        return triangles
-
-    def _create_side_panels(self, front_points, back_points):
-        """Create side panels connecting front and back of dress"""
-        side_triangles = []
-        
-        # Right side panels
-        for i in range(0, len(front_points) - 1, 2):
-            if i + 1 < len(front_points) and i + 1 < len(back_points):
-                # Right side
-                front_right = front_points[i] if front_points[i][0] > 0 else front_points[i+1]
-                back_right = back_points[i] if back_points[i][0] > 0 else back_points[i+1]
-                
-                if i + 2 < len(front_points):
-                    front_right_next = front_points[i+2] if front_points[i+2][0] > 0 else front_points[i+3] if i+3 < len(front_points) else front_points[i+2]
-                    back_right_next = back_points[i+2] if back_points[i+2][0] > 0 else back_points[i+3] if i+3 < len(back_points) else back_points[i+2]
-                    
-                    # Create side panel triangles
-                    triangle1 = [front_right, back_right, front_right_next]
-                    triangle2 = [back_right, back_right_next, front_right_next]
-                    side_triangles.extend([triangle1, triangle2])
-        
-        return side_triangles
-
-    def _add_dress_details(self, ax, dress_front, dress_color, fitness_factor):
-        """Add dress details like neckline, waistline"""
-        
-        # Neckline detail
-        neckline_points = dress_front[:2]  # First two points are neckline
-        if len(neckline_points) == 2:
-            ax.plot([neckline_points[0][0], neckline_points[1][0]], 
-                   [neckline_points[0][1], neckline_points[1][1]], 
-                   [neckline_points[0][2], neckline_points[1][2]], 
-                   color='darkviolet', linewidth=3, alpha=0.9)
-        
-        # Waistline detail (if fitness is high enough)
-        if fitness_factor > 0.3:
-            waist_points = dress_front[6:8]  # Waist area points
-            if len(waist_points) == 2:
-                ax.plot([waist_points[0][0], waist_points[1][0]], 
-                       [waist_points[0][1], waist_points[1][1]], 
-                       [waist_points[0][2], waist_points[1][2]], 
-                       color='purple', linewidth=2, alpha=0.7, linestyle='--')
-        
-        # Hemline
-        hem_points = dress_front[-2:]  # Last two points are hemline
-        if len(hem_points) == 2:
-            ax.plot([hem_points[0][0], hem_points[1][0]], 
-                   [hem_points[0][1], hem_points[1][1]], 
-                   [hem_points[0][2], hem_points[1][2]], 
-                   color='darkmagenta', linewidth=2, alpha=0.8)
-    
-    def _create_summary_image(self, designs: List[FashionDesign], generation: int, results_folder: str):
-        """Create a simple summary visualization"""
-        import os
-        
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-        
-        # Plot 1: Fitness distribution
-        fitnesses = [d.fitness for d in designs]
-        ax1.bar(range(len(fitnesses)), fitnesses, color='skyblue', alpha=0.7)
-        ax1.set_xlabel('Design Number')
-        ax1.set_ylabel('Fitness Score')
-        ax1.set_title(f'Generation {generation + 1} - Fitness Scores')
-        ax1.grid(True, alpha=0.3)
-        
-        # Highlight best design
-        if fitnesses:
-            best_idx = fitnesses.index(max(fitnesses))
-            ax1.bar(best_idx, fitnesses[best_idx], color='gold', alpha=0.9)
-        
-        # Plot 2: Simple dress silhouettes
-        ax2.set_xlim(-3, 3)
-        ax2.set_ylim(0, 6)
-        ax2.set_aspect('equal')
-        
-        # Draw simple dress shapes for top 5 designs
-        colors = ['red', 'blue', 'green', 'purple', 'orange']
-        for i, design in enumerate(designs[:5]):
-            x_offset = (i - 2) * 1.2  # Spread them out
-            
-            # Simple dress outline
-            dress_x = [x_offset - 0.3, x_offset + 0.3, x_offset + 0.4, x_offset - 0.4, x_offset - 0.3]
-            dress_y = [5.5, 5.5, 1, 1, 5.5]  # Shoulders to hem
-            
-            ax2.plot(dress_x, dress_y, color=colors[i], linewidth=3, alpha=0.8)
-            ax2.fill(dress_x, dress_y, color=colors[i], alpha=0.3)
-            ax2.text(x_offset, 0.5, f'D{i+1}\n{design.fitness:.2f}', 
-                    ha='center', va='center', fontsize=8, fontweight='bold')
-        
-        ax2.set_title('Top 5 Dress Designs')
-        ax2.set_xlabel('Design Variations')
-        ax2.set_xticks([])
-        ax2.set_yticks([])
-        
-        plt.tight_layout()
-        summary_filename = os.path.join(results_folder, f'generation_{generation + 1}_summary.png')
-        plt.savefig(summary_filename, dpi=200, bbox_inches='tight', facecolor='white')
-        print(f"   📊 Saved summary to {summary_filename}")
-        
-        plt.show(block=False)
-        plt.pause(0.1)
-        plt.close(fig)  # Close to prevent memory issues
-    
-    def save_best_design(self, designs: List[FashionDesign], filename: str):
-        """Save the best design with all its data"""
-        best_design = max(designs, key=lambda d: d.fitness)
-        
-        # Save design data
-        design_data = best_design.to_dict()
-        
-        with open(f"{filename}.json", 'w') as f:
-            json.dump(design_data, f, indent=2, default=str)
-        
-        # Save 3D mesh if available
-        if best_design.mesh_3d is not None:
-            best_design.mesh_3d.export(f"{filename}.obj")
-        
-        print(f"💾 Saved best design to {filename}")
+        print(f"   💾 Complete data saved: {data_path}")
 
 def main():
-    """Main execution function"""
-    print("🎨 3D Fashion CPPN Evolution System")
-    print("=" * 50)
+    """Main execution function for beautiful fashion evolution"""
     
-    # Choose garment type
+    print("✨ Enhanced 3D Fashion CPPN Evolution System")
+    print("=" * 60)
+    print("🎨 Creating Beautiful Fashion Designs")
+    print("=" * 60)
+    
+    # Choose garment type (default to dress for best visual results)
     garment_types = list(GarmentType)
-    print("Available garment types:")
+    print("\nAvailable garment types:")
     for i, gt in enumerate(garment_types):
         print(f"  {i+1}. {gt.value}")
     
     try:
-        choice = input("Choose garment type (1-5, default=1): ").strip()
-        choice = int(choice) if choice else 1
+        choice = input("Choose garment type (1-5, default=2 for dress): ").strip()
+        choice = int(choice) if choice else 2
         garment_type = garment_types[choice - 1]
     except (ValueError, IndexError):
-        garment_type = GarmentType.JACKET
-        print("Using default: jacket")
+        garment_type = GarmentType.DRESS
+        print("Using default: dress")
     
-    # Initialize system
-    system = Fashion3DSystem(garment_type)
+    # Initialize enhanced system
+    system = Enhanced3DFashionSystem(garment_type)
     
-    # Run evolution
-    final_designs = system.run_evolution(generations=5, population_size=12)
+    # Get evolution parameters
+    try:
+        generations = int(input("Number of generations (default=6): ") or "6")
+        population_size = int(input("Population size (default=9): ") or "9")
+    except ValueError:
+        generations = 6
+        population_size = 9
     
-    # Save best result
-    system.save_best_design(final_designs, f"best_{garment_type.value}_design")
+    print(f"\n🚀 Starting evolution with {generations} generations, {population_size} designs per generation")
     
-    print(f"\n✨ Created {len(final_designs)} unique 3D fashion designs!")
+    # Run beautiful evolution
+    final_designs = system.run_beautiful_evolution(generations, population_size)
+    
+    # Display final results
+    best_design = max(final_designs, key=lambda d: d.fitness)
+    print(f"\n🏆 EVOLUTION COMPLETE!")
+    print(f"🎨 Best Design Fitness: {best_design.fitness:.3f}")
+    print(f"👗 Best Design Theme: {best_design.style_characteristics.get('theme', 'unknown')}")
+    print(f"📝 Design Notes: {'; '.join(best_design.design_notes)}")
+    print(f"✨ Created {len(final_designs)} beautiful fashion designs!")
 
 if __name__ == "__main__":
     main()
